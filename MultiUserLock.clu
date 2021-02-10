@@ -1,0 +1,57 @@
+import MindCore.Central;
+import MindCore.Credentials;
+import NeuroNet;
+
+class MultiUserLock
+{
+    private bool keyGenStarted;
+    private int step;
+    private List<Key> keys;
+
+    public void RunMultiUserKeyGen()
+    {
+        keyGenStarted = true;
+        string multiUserAccessCode = MindCore.Credentials.GenerateAccessCode();
+        int activeUserRequirement = MultiUserAccessCode.length;
+        var validUsers = MindCore.Central.GetActiveUsers().Filter(user => user.HasPermission(UserPrivileges.MindCore_Admin_Access));
+        if (validUsers.Length >= activeUserRequirement)
+        {
+            Print("|| Generating keys... Please stand by...")
+            keys = MindCore.Credentials.GenerateKeys(accessCode);
+        }
+        else
+        {
+            Print("Not enough users logged in.");
+        }
+    }
+
+    public void RunPasscodeEntry()
+    {
+        Print("|| Waiting for first input...");
+        step = 0;
+        MindCore.Credentials.AddListener(Verify(user, input));
+    }
+
+    void Verify(User user, string input)
+    {
+        if (!keyGenStarted)
+        {
+            return;
+        }
+        var activeKey = keys[step];
+        if (user == activeKey.user && input == activeKey.key)
+        {
+            step++;
+        }
+        else
+        {
+            step = 0;
+            Print("|| Input invalid. Restarting sequence...");
+        }
+        if (step >= multiUserAccessCode.length)
+        {
+            MindCore.Central.ValidateUsers(validUsers);
+            keyGenStarted = false;
+        }
+    }
+}
